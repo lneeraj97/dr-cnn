@@ -1,0 +1,9 @@
+{
+    "python.pythonPath": "/home/neeraj/miniconda3/envs/dl/bin/python",
+    "path-intellisense.showHiddenFiles": true,
+    "python.linting.pylintEnabled": true,
+    "python.autoComplete.addBrackets": true,
+    "python.dataScience.exportWithOutputEnabled": true,
+    "python.terminal.executeInFileDir": true,
+    "cSpell.language": "en"
+}
