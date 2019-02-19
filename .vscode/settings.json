@@ -5,5 +5,11 @@
     "python.autoComplete.addBrackets": true,
     "python.dataScience.exportWithOutputEnabled": true,
     "python.terminal.executeInFileDir": true,
-    "cSpell.language": "en"
+    "cSpell.language": "en",
+    "workbench.colorTheme": "Material Theme Ocean High Contrast",
+    // "workbench.colorCustomizations": {
+    //     "activityBar.background": "#a9b0f3",
+    //     "titleBar.activeBackground": "#6b709e",
+    //     "titleBar.activeForeground": "#8d87af"
+    // }
 }

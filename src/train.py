@@ -1,8 +1,8 @@
 """ Creates a CNN from model.cnn and trains it"""
 from model import cnn  # Import required functions
 
-train_path = "../data/processed/train/"
-test_path = "../data/processed/test/"
+train_path = "../data/4ary/train/"
+test_path = "../data/4ary/test/"
 json_file = "../model/model.json"
 weights_file = "../model/model.h5"
 text_file = "../model/model.txt"
