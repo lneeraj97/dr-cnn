@@ -1,12 +1,17 @@
+import os
 from keras import layers, models
-from keras.models import Sequential
-from keras.layers import (Conv2D, MaxPooling2D, ReLU, Dropout,
+from keras.models import Sequential, load_model
+from keras.layers import (Conv2D, MaxPooling2D, ReLU, Dropout, Input,
                           Flatten, Dense, LeakyReLU, Softmax,
                           BatchNormalization)
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import ModelCheckpoint
 from keras.utils import plot_model
 from contextlib import redirect_stdout
+from keras.applications import InceptionResNetV2
+from keras.models import Model
+import pandas as pd
+import keras_metrics
 
 
 class CNN:
@@ -104,52 +109,55 @@ class CNN:
         self.target_size = target_size
 
     def create_model(self):
+        if os.path.isfile(self.weights_file):
+            print("Saved model found")
+            self.model = load_model(self.weights_file)
+            print("Saved model loaded successfully")
 
-        self.model = Sequential()
+        else:
+            self.model = Sequential()
 
-        self.model.add(Conv2D(32, self.kernel_size,
-                              input_shape=self.input_shape,
-                              use_bias=True, strides=1, padding='same'))
-        self.model.add(ReLU())
-        self.model.add(MaxPooling2D(pool_size=self.pool_size, strides=2))
-        self.model.add(ReLU())
-        self.model.add(Dropout(rate=self.dropout_rate))
-
-        self.model.add(Conv2D(32, self.kernel_size, strides=1, use_bias=True,
-                              padding='same'))
-        self.model.add(ReLU())
-        self.model.add(MaxPooling2D(pool_size=self.pool_size, strides=2))
-        self.model.add(ReLU())
-        self.model.add(Dropout(rate=self.dropout_rate))
-
-        self.model.add(Conv2D(32, self.kernel_size, strides=1,
-                              use_bias=True, padding='same'))
-        self.model.add(ReLU())
-        self.model.add(MaxPooling2D(pool_size=self.pool_size, strides=2))
-        self.model.add(ReLU())
-        self.model.add(Dropout(rate=self.dropout_rate))
-
-        self.model.add(Flatten())
-
-        self.model.add(Dense(units=256))
-        self.model.add(ReLU())
-        self.model.add(Dropout(rate=self.dropout_rate))
-        self.model.add(Dense(units=128))
-        self.model.add(ReLU())
-        self.model.add(Dropout(rate=self.dropout_rate))
-        self.model.add(Dense(units=self.args.get('units'),
-                             activation=self.args.get('activation')))
-        # self.model.add(Softmax(axis=-1))
+            self.model.add(Conv2D(32, self.kernel_size,
+                                  input_shape=self.input_shape,
+                                  use_bias=True, strides=1, padding='same'))
+            self.model.add(ReLU())
+            self.model.add(MaxPooling2D(pool_size=self.pool_size, strides=2))
+            self.model.add(ReLU())
+            self.model.add(Dropout(rate=self.dropout_rate))
+            self.model.add(Conv2D(32, self.kernel_size, strides=1, use_bias=True,
+                                  padding='same'))
+            self.model.add(ReLU())
+            self.model.add(MaxPooling2D(pool_size=self.pool_size, strides=2))
+            self.model.add(ReLU())
+            self.model.add(Dropout(rate=self.dropout_rate))
+            self.model.add(Conv2D(32, self.kernel_size, strides=1,
+                                  use_bias=True, padding='same'))
+            self.model.add(ReLU())
+            self.model.add(MaxPooling2D(pool_size=self.pool_size, strides=2))
+            self.model.add(ReLU())
+            self.model.add(Dropout(rate=self.dropout_rate))
+            self.model.add(Flatten())
+            self.model.add(Dense(units=256))
+            self.model.add(ReLU())
+            self.model.add(Dropout(rate=self.dropout_rate))
+            self.model.add(Dense(units=128))
+            self.model.add(ReLU())
+            self.model.add(Dropout(rate=self.dropout_rate))
+            self.model.add(Dense(units=self.args.get('units'),
+                                 activation=self.args.get('activation')))
+            # self.model.add(Softmax(axis=-1))
 
     def train_model(self):
         self.model.compile(optimizer=self.optimizer,
                            loss=self.args.get('loss'),
-                           metrics=["accuracy"])
+                           metrics=[keras_metrics.recall(), keras_metrics.precision()])
         checkpoint = ModelCheckpoint(self.weights_file,
                                      monitor="loss",
                                      verbose=1,
                                      save_best_only=True,
-                                     mode="min")
+                                     mode="min",
+                                     save_weights_only=False
+                                     )
         callbacks_list = [checkpoint]
 
         train_datagen = ImageDataGenerator(
@@ -159,7 +167,7 @@ class CNN:
             zoom_range=0.5,
             horizontal_flip=True,
             vertical_flip=True,
-            rotation_range=180,
+            rotation_range=90,
         )
 
         train_set = train_datagen.flow_from_directory(
@@ -177,15 +185,44 @@ class CNN:
             subset="validation",
         )
 
-        self.model.fit_generator(
-            train_set,
-            steps_per_epoch=self.steps_per_epoch,
+        self.history_train = self.model.fit_generator(
+            train_set, steps_per_epoch=self.steps_per_epoch,
             epochs=self.epochs,
             validation_steps=self.validation_steps,
             validation_data=val_set,
             callbacks=callbacks_list,
         )
         print("Everything's done")
+
+    def evaluate_model(self):
+        if os.path.isfile(self.weights_file):
+            print("Saved model found")
+            self.model = load_model(self.weights_file)
+            print("Saved model loaded successfully")
+            self.model.compile(optimizer=self.optimizer,
+                               loss=self.args.get('loss'),
+                               metrics=["accuracy", keras_metrics.recall(), keras_metrics.precision()])
+            test_datagen = ImageDataGenerator(
+                rescale=1./255,
+                shear_range=0.5,
+                zoom_range=0.5,
+                horizontal_flip=True,
+                vertical_flip=True,
+                rotation_range=90,
+            )
+            test_set = test_datagen.flow_from_directory(
+                self.test_path,
+                target_size=self.target_size,
+                batch_size=1,
+                class_mode=self.args.get('class_mode'),
+            )
+            self.history_test = self.model.evaluate_generator(
+                test_set, steps=self.steps_per_epoch)
+
+            print(self.model.metrics_names, self.history_test)
+
+        else:
+            print("Model not found")
 
     def export_model(self):
         with open(self.text_file, "w") as my_file:
